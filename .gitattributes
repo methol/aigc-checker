@@ -1,0 +1,4 @@
+* text=auto
+public/samples/*.pdf binary
+public/samples/*.jpg binary
+public/samples/*.mp3 binary
