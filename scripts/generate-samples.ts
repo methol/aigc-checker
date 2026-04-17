@@ -159,48 +159,53 @@ function buildPdf(): Buffer {
     .replace(/\(/g, '\\(')
     .replace(/\)/g, '\\)')
 
-  const lines: string[] = []
+  // Track byte offsets precisely using Buffer.byteLength (all content is ASCII here)
+  const parts: string[] = []
   const offsets: number[] = []
 
-  const push = (s: string) => { lines.push(s); return lines.length - 1 }
-
-  push('%PDF-1.4')
-  push('%\u00e2\u00e3\u00cf\u00d3')
-
-  offsets[1] = lines.join('\n').length + 1
-  push('1 0 obj')
-  push('<< /Type /Catalog /Pages 2 0 R >>')
-  push('endobj')
-
-  offsets[2] = lines.join('\n').length + 1
-  push('2 0 obj')
-  push('<< /Type /Pages /Kids [3 0 R] /Count 1 >>')
-  push('endobj')
-
-  offsets[3] = lines.join('\n').length + 1
-  push('3 0 obj')
-  push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] >>')
-  push('endobj')
-
-  offsets[4] = lines.join('\n').length + 1
-  push('4 0 obj')
-  push(`<< /Title (AIGC Sample) /Author (AI System) /AIGC (${aigcValue}) >>`)
-  push('endobj')
-
-  const xrefOffset = lines.join('\n').length + 1
-  push('xref')
-  push(`0 5`)
-  push('0000000000 65535 f ')
-  for (let i = 1; i <= 4; i++) {
-    push(String(offsets[i]).padStart(10, '0') + ' 00000 n ')
+  function byteLen() {
+    return Buffer.byteLength(parts.join('\n'), 'utf8')
   }
-  push('trailer')
-  push('<< /Size 5 /Root 1 0 R /Info 4 0 R >>')
-  push('startxref')
-  push(String(xrefOffset))
-  push('%%EOF')
+  function pushLine(s: string) { parts.push(s) }
 
-  return Buffer.from(lines.join('\n'), 'utf8')
+  pushLine('%PDF-1.4')
+  pushLine('% aigc-checker sample')
+
+  offsets[1] = byteLen() + 1 // +1 for the \n separator before next push
+  pushLine('1 0 obj')
+  pushLine('<< /Type /Catalog /Pages 2 0 R >>')
+  pushLine('endobj')
+
+  offsets[2] = byteLen() + 1
+  pushLine('2 0 obj')
+  pushLine('<< /Type /Pages /Kids [3 0 R] /Count 1 >>')
+  pushLine('endobj')
+
+  offsets[3] = byteLen() + 1
+  pushLine('3 0 obj')
+  pushLine('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] >>')
+  pushLine('endobj')
+
+  offsets[4] = byteLen() + 1
+  pushLine('4 0 obj')
+  pushLine(`<< /Title (AIGC Sample) /Author (AI System) /AIGC (${aigcValue}) >>`)
+  pushLine('endobj')
+
+  const xrefOffset = byteLen() + 1
+  pushLine('xref')
+  pushLine('0 5')
+  // Each xref entry must be exactly 20 bytes: 10d SP 5d SP [fn] SP CR LF
+  pushLine('0000000000 65535 f \r')
+  for (let i = 1; i <= 4; i++) {
+    pushLine(String(offsets[i]).padStart(10, '0') + ' 00000 n \r')
+  }
+  pushLine('trailer')
+  pushLine('<< /Size 5 /Root 1 0 R /Info 4 0 R >>')
+  pushLine('startxref')
+  pushLine(String(xrefOffset))
+  pushLine('%%EOF')
+
+  return Buffer.from(parts.join('\n'), 'utf8')
 }
 
 writeFileSync(join(OUT, 'sample.pdf'), buildPdf())

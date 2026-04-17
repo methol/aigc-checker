@@ -45,8 +45,8 @@ export function parseProducerDisplay(code: string): {
 export function extractFromXmpString(xmpStr: string): AigcFields | null {
   if (!xmpStr) return null
 
-  // 1. XmpKvBase64 attribute
-  const b64Match = xmpStr.match(/XmpKvBase64="([^"]+)"/)
+  // 1. XmpKvBase64 — handles both XML attribute form and JSON-stringified object form
+  const b64Match = xmpStr.match(/XmpKvBase64[=":\s]+([A-Za-z0-9+/]+=*)/)
   if (b64Match?.[1]) {
     const fields = parseXmpKvBase64(b64Match[1])
     if (fields) return fields
